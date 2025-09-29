@@ -1,0 +1,604 @@
+<!DOCTYPE html> <html lang="ko"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Bill Manager 앱 개발 개요 문서</title> <style> * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #f5f5f5;
+        padding: 20px;
+    }
+    
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 40px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 8px;
+    }
+    
+    .header {
+        border-bottom: 3px solid #2c3e50;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+    
+    h1 {
+        color: #2c3e50;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+    }
+    
+    .meta-info {
+        color: #7f8c8d;
+        font-size: 0.9em;
+        margin-top: 10px;
+    }
+    
+    h2 {
+        color: #34495e;
+        font-size: 1.8em;
+        margin-top: 40px;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #ecf0f1;
+    }
+    
+    h3 {
+        color: #546e7a;
+        font-size: 1.3em;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
+    
+    h4 {
+        color: #607d8b;
+        font-size: 1.1em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+    
+    p {
+        margin-bottom: 15px;
+        text-align: justify;
+    }
+    
+    ul, ol {
+        margin-left: 30px;
+        margin-bottom: 15px;
+    }
+    
+    li {
+        margin-bottom: 8px;
+    }
+    
+    .code-block {
+        background: #f8f9fa;
+        border-left: 4px solid #4CAF50;
+        padding: 15px;
+        margin: 15px 0;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+        overflow-x: auto;
+        border-radius: 4px;
+    }
+    
+    .highlight {
+        background: #fff3cd;
+        padding: 15px;
+        border-left: 4px solid #ffc107;
+        margin: 15px 0;
+        border-radius: 4px;
+    }
+    
+    .info-box {
+        background: #e3f2fd;
+        padding: 15px;
+        border-left: 4px solid #2196F3;
+        margin: 15px 0;
+        border-radius: 4px;
+    }
+    
+    .warning-box {
+        background: #ffebee;
+        padding: 15px;
+        border-left: 4px solid #f44336;
+        margin: 15px 0;
+        border-radius: 4px;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        background: white;
+    }
+    
+    th {
+        background: #34495e;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .checklist {
+        list-style-type: none;
+        margin-left: 0;
+    }
+    
+    .checklist li:before {
+        content: "☐ ";
+        margin-right: 10px;
+        color: #4CAF50;
+        font-weight: bold;
+    }
+    
+    .section-nav {
+        background: #ecf0f1;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+    
+    .section-nav a {
+        color: #2c3e50;
+        text-decoration: none;
+        display: block;
+        padding: 5px 0;
+    }
+    
+    .section-nav a:hover {
+        color: #3498db;
+        padding-left: 10px;
+        transition: all 0.3s;
+    }
+    
+    .tech-badge {
+        display: inline-block;
+        background: #3498db;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.85em;
+        margin: 5px 5px 5px 0;
+    }
+    
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .status-overdue { background: #FF4444; }
+    .status-due-soon { background: #FFB6C1; }
+    .status-paid { background: #95A99B; }
+    .status-unpaid { background: #9E9E9E; }
+    
+    @media print {
+        body {
+            background: white;
+            padding: 0;
+        }
+        .container {
+            box-shadow: none;
+            padding: 20px;
+        }
+    }
+</style>
+</head> <body> <div class="container"> <div class="header"> <h1>📱 Bill Manager 앱 개발 개요 문서</h1> <div class="meta-info"> <strong>프로젝트 위치:</strong> c:\app\BillManager<br> <strong>개발자:</strong> Paradise<br> <strong>문서 작성일:</strong> 2025년 9월 29일<br> <strong>버전:</strong> 1.0 </div> </div>
+    <div class="section-nav">
+        <strong>📑 목차</strong>
+        <a href="#section1">1. 앱 개요</a>
+        <a href="#section2">2. 구조</a>
+        <a href="#section3">3. 주요 기능</a>
+        <a href="#section4">4. UI/UX</a>
+        <a href="#section5">5. 개발 단계별 체크리스트</a>
+        <a href="#section6">6. 기술적 고려사항</a>
+        <a href="#section7">7. 향후 확장 가능성</a>
+    </div>
+
+    <section id="section1">
+        <h2>1. 앱 개요</h2>
+        
+        <h3>1.1 앱 소개</h3>
+        <div class="info-box">
+            <p><strong>Bill Manager</strong>는 신용카드, 통신비, 렌트 등 정기적으로 발생하는 청구서의 연체를 방지하기 위한 모바일 애플리케이션입니다. 사용자가 납부 기한을 놓치지 않도록 직관적인 인터페이스와 스마트 알림 기능을 제공하며, 모든 데이터는 로컬에 저장되어 개인정보 보호를 보장합니다.</p>
+        </div>
+        
+        <h4>핵심 목표</h4>
+        <ul>
+            <li>청구서 납부 기한 관리 자동화</li>
+            <li>연체 방지를 위한 시각적 경고 시스템</li>
+            <li>간편한 납부 상태 추적</li>
+            <li>다국어 및 다중 화폐 지원</li>
+        </ul>
+
+        <h3>1.2 기술 스택</h3>
+        
+        <h4>Frontend</h4>
+        <div>
+            <span class="tech-badge">React Native</span>
+            <span class="tech-badge">Expo</span>
+            <span class="tech-badge">React Navigation</span>
+            <span class="tech-badge">i18next</span>
+        </div>
+        
+        <h4>Backend</h4>
+        <div>
+            <span class="tech-badge">SQLite</span>
+            <span class="tech-badge">Expo FileSystem</span>
+            <span class="tech-badge">AsyncStorage</span>
+        </div>
+        
+        <h4>Feature</h4>
+        <div>
+            <span class="tech-badge">CSV Import/Export</span>
+            <span class="tech-badge">Local Notifications</span>
+            <span class="tech-badge">Date-fns</span>
+            <span class="tech-badge">Gesture Handler</span>
+        </div>
+
+        <h3>1.3 주요 화면 구성</h3>
+        
+        <h4>Tab 1: Payment Dashboard</h4>
+        <ul>
+            <li>향후 3개월간의 납부 일정 타임라인 뷰</li>
+            <li>납부 상태별 시각적 구분
+                <ul>
+                    <li><span class="status-indicator status-overdue"></span>Overdue (빨간색)</li>
+                    <li><span class="status-indicator status-due-soon"></span>Due Soon (분홍색)</li>
+                    <li><span class="status-indicator status-paid"></span>Paid (회녹색)</li>
+                    <li><span class="status-indicator status-unpaid"></span>Unpaid (회색)</li>
+                </ul>
+            </li>
+            <li>월별 납부 현황 요약 (Paid / Total)</li>
+            <li>빠른 상태 변경 (탭, 스와이프)</li>
+        </ul>
+        
+        <h4>Tab 2: Account Management</h4>
+        <ul>
+            <li>등록된 계정 목록 (최신순)</li>
+            <li>계정별 상세 정보 관리</li>
+            <li>반복 청구 설정</li>
+            <li>납부 이력 조회</li>
+        </ul>
+        
+        <h4>Tab 3: Settings</h4>
+        <ul>
+            <li>프로필 설정 (이름, 언어, 화폐)</li>
+            <li>알림 설정</li>
+            <li>데이터 백업/복원 (CSV Import/Export)</li>
+            <li>개발자 모드 (로그 뷰어, 데이터 재생성, 초기화)</li>
+        </ul>
+    </section>
+
+    <section id="section2">
+        <h2>2. 구조</h2>
+        
+        <h3>2.1 데이터 모델 (DB Tables & Fields)</h3>
+        
+        <h4>Table: accounts</h4>
+        <div class="code-block">
+id INTEGER PRIMARY KEY AUTOINCREMENT name TEXT NOT NULL category TEXT NOT NULL (Credit Card, Rent, Utility, etc.) bank_account TEXT notes TEXT amount REAL currency TEXT DEFAULT 'USD' repeats TEXT (Monthly, Weekly, Yearly, etc.) start_date TEXT (ISO 8601) has_end_date INTEGER (0 or 1) end_date TEXT (ISO 8601) is_active INTEGER DEFAULT 1 created_at TEXT (ISO 8601 UTC) updated_at TEXT (ISO 8601 UTC) </div>
+
+        <h4>Table: payments</h4>
+        <div class="code-block">
+id INTEGER PRIMARY KEY AUTOINCREMENT account_id INTEGER (FK to accounts) due_date TEXT (ISO 8601, date only) amount REAL is_paid INTEGER DEFAULT 0 (0: Unpaid, 1: Paid) paid_date TEXT (ISO 8601) note TEXT created_at TEXT (ISO 8601 UTC) updated_at TEXT (ISO 8601 UTC) </div>
+
+        <h4>Table: reminders</h4>
+        <div class="code-block">
+id INTEGER PRIMARY KEY AUTOINCREMENT account_id INTEGER (FK to accounts) remind_value INTEGER (e.g., 3) remind_unit TEXT (day, week, month) remind_type TEXT (due, before_due) is_active INTEGER DEFAULT 1 created_at TEXT (ISO 8601 UTC) </div>
+
+        <h4>Table: payment_methods</h4>
+        <div class="code-block">
+id INTEGER PRIMARY KEY AUTOINCREMENT name TEXT NOT NULL type TEXT (Bank Transfer, Credit Card, Cash, etc.) is_active INTEGER DEFAULT 1 created_at TEXT (ISO 8601 UTC) </div>
+
+        <h4>Table: logs</h4>
+        <div class="code-block">
+id INTEGER PRIMARY KEY AUTOINCREMENT action TEXT NOT NULL table_name TEXT record_id INTEGER details TEXT (JSON format) timestamp TEXT (ISO 8601 UTC) </div>
+
+        <h4>Table: settings</h4>
+        <div class="code-block">
+id INTEGER PRIMARY KEY AUTOINCREMENT key TEXT UNIQUE NOT NULL value TEXT updated_at TEXT (ISO 8601 UTC) </div>
+
+        <h3>2.2 앱 설정</h3>
+        <p><strong>Settings 저장 항목 (AsyncStorage 또는 settings 테이블)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>키</th>
+                    <th>설명</th>
+                    <th>기본값</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>user_name</td>
+                    <td>사용자 이름</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>language</td>
+                    <td>언어 코드 (en, ko, ja, etc.)</td>
+                    <td>디바이스 언어</td>
+                </tr>
+                <tr>
+                    <td>currency</td>
+                    <td>기본 화폐 단위 (USD, KRW, etc.)</td>
+                    <td>USD</td>
+                </tr>
+                <tr>
+                    <td>notification_time</td>
+                    <td>알림 시간 (HH:MM 형식)</td>
+                    <td>09:00</td>
+                </tr>
+                <tr>
+                    <td>notification_enabled</td>
+                    <td>알림 활성화 여부</td>
+                    <td>true</td>
+                </tr>
+                <tr>
+                    <td>developer_mode</td>
+                    <td>개발자 모드 활성화 여부</td>
+                    <td>false</td>
+                </tr>
+                <tr>
+                    <td>app_version</td>
+                    <td>앱 버전</td>
+                    <td>1.0.0</td>
+                </tr>
+                <tr>
+                    <td>last_backup_date</td>
+                    <td>마지막 백업 날짜</td>
+                    <td>-</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>2.3 자동화 로직</h3>
+        
+        <h4>납부 일정 자동 생성 (Payment Auto-generation)</h4>
+        <ul>
+            <li>Account의 <code>repeats</code> 설정에 따라 향후 3개월치 Payment 레코드 자동 생성</li>
+            <li>앱 실행 시 또는 Account 생성/수정 시 트리거</li>
+            <li>중복 생성 방지: 동일 account_id와 due_date 조합 체크</li>
+            <li><code>end_date</code> 설정 시 해당 날짜까지만 생성</li>
+        </ul>
+        
+        <h4>알림 스케줄링</h4>
+        <ul>
+            <li>Reminders 테이블 기반으로 로컬 알림 예약</li>
+            <li>매일 자정에 다음 날 알림 재계산</li>
+            <li>알림 시간은 Settings의 <code>notification_time</code> 기준</li>
+        </ul>
+        
+        <h4>상태 기반 색상 분류</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>상태</th>
+                    <th>조건</th>
+                    <th>색상</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Overdue</td>
+                    <td>현재 날짜 > due_date && is_paid = 0</td>
+                    <td style="color: #FF4444;">빨간색</td>
+                </tr>
+                <tr>
+                    <td>Due Soon</td>
+                    <td>due_date - 현재 날짜 ≤ 3일 && is_paid = 0</td>
+                    <td style="color: #FFB6C1;">분홍색</td>
+                </tr>
+                <tr>
+                    <td>Paid</td>
+                    <td>is_paid = 1</td>
+                    <td style="color: #95A99B;">회녹색</td>
+                </tr>
+                <tr>
+                    <td>Unpaid (일반)</td>
+                    <td>그 외</td>
+                    <td style="color: #9E9E9E;">회색</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="section3">
+        <h2>3. 주요 기능</h2>
+        
+        <h3>3.1 자동 결제 일정 생성</h3>
+        <ul>
+            <li><strong>반복 주기 설정:</strong> Weekly, Monthly, Yearly, Custom</li>
+            <li><strong>시작일 지정:</strong> Calendar Picker로 첫 납부일 선택</li>
+            <li><strong>종료 조건:</strong> 무기한 또는 특정 날짜까지</li>
+            <li><strong>자동 생성 로직:</strong>
+                <ul>
+                    <li>Account 저장 시 향후 3개월치 Payment 레코드 생성</li>
+                    <li>기존 레코드 중복 체크 (account_id + due_date)</li>
+                    <li>월말 처리: 31일을 기준으로 하는 경우 각 월의 마지막 날로 조정</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>3.2 스마트 알림</h3>
+        <ul>
+            <li><strong>다중 알림 설정:</strong> 계정당 여러 개의 알림 등록 가능</li>
+            <li><strong>알림 타이밍:</strong>
+                <ul>
+                    <li>납부 당일</li>
+                    <li>N일/주/월 전</li>
+                </ul>
+            </li>
+            <li><strong>알림 시간 통합:</strong> 모든 알림은 설정된 하나의 시간에 발송</li>
+            <li><strong>알림 내용:</strong> 계정명, 금액, 납부 기한 포함</li>
+        </ul>
+
+        <h3>3.3 상태 관리</h3>
+        <ul>
+            <li><strong>빠른 상태 변경:</strong>
+                <ul>
+                    <li>탭: Payment Detail 화면으로 이동</li>
+                    <li>좌 스와이프: Paid로 변경</li>
+                    <li>우 스와이프: Unpaid로 변경</li>
+                </ul>
+            </li>
+            <li><strong>자동 타임스탬프:</strong> 상태 변경 시 <code>paid_date</code> 자동 기록</li>
+            <li><strong>메모 기능:</strong> 각 납부 건에 노트 추가 가능</li>
+            <li><strong>납부 이력:</strong> Account별 과거 납부 기록 조회 (최신순)</li>
+        </ul>
+
+        <h3>3.4 다국어 지원</h3>
+        <ul>
+            <li><strong>지원 언어:</strong> 영어(en), 한국어(ko), 일본어(ja) - 확장 가능</li>
+            <li><strong>번역 범위:</strong>
+                <ul>
+                    <li>UI 레이블 및 버튼</li>
+                    <li>카테고리명</li>
+                    <li>오류 메시지</li>
+                    <li>날짜 형식 로컬라이제이션</li>
+                </ul>
+            </li>
+            <li><strong>구현:</strong> i18next 라이브러리 활용</li>
+            <li><strong>기본 언어:</strong> 디바이스 언어 자동 감지, 미지원 시 영어</li>
+        </ul>
+    </section>
+
+    <section id="section4">
+        <h2>4. UI/UX</h2>
+        
+        <h3>4.1 과하지 않은 간결한 인터페이스</h3>
+        <h4>컬러 스킴</h4>
+        <ul>
+            <li>기본: 은은한 회색과 검정색 (미니멀)</li>
+            <li>Overdue: 빨간색 (#FF4444)</li>
+            <li>Due Soon: 분홍색 (#FFB6C1)</li>
+            <li>Paid: 회녹색 (#95A99B, 낮은 opacity)</li>
+        </ul>
+        
+        <h4>타이포그래피</h4>
+        <ul>
+            <li>계층 구조 명확 (계정명 > 금액 > 날짜)</li>
+            <li>가독성 우선 (충분한 행간, 적절한 폰트 크기)</li>
+        </ul>
+        
+        <h4>레이아웃</h4>
+        <ul>
+            <li>카드 형식으로 정보 그룹화</li>
+            <li>여백을 통한 시각적 구분</li>
+        </ul>
+
+        <h3>4.2 빠른 액션 버튼과 Swipe 동시 사용</h3>
+        <ul>
+            <li><strong>스와이프 제스처:</strong>
+                <ul>
+                    <li>좌: Paid 마크 (체크 아이콘)</li>
+                    <li>우: Unpaid 마크 (X 아이콘)</li>
+                </ul>
+            </li>
+            <li><strong>탭 동작:</strong> Detail 화면 전환</li>
+            <li><strong>롱프레스:</strong> 추가 옵션 메뉴 (삭제, 수정)</li>
+        </ul>
+
+        <h3>4.3 원터치 상태 변경</h3>
+        <div class="info-box">
+            <strong>Payment Detail 화면:</strong>
+            <ul>
+                <li>Toggle Switch로 Paid/Unpaid 즉시 변경</li>
+                <li>변경 시 실시간 저장</li>
+                <li>변경 내역 로그 자동 기록</li>
+            </ul>
+        </div>
+
+        <h3>4.4 메모 기능</h3>
+        <p><strong>용도:</strong></p>
+        <ul>
+            <li>납부 방법 기록 (계좌이체, 카드 등)</li>
+            <li>특이사항 메모</li>
+            <li>납부 확인 번호</li>
+        </ul>
+        <p><strong>UI:</strong> Multi-line TextInput</p>
+        <p><strong>저장:</strong> payments 테이블의 <code>note</code> 필드</p>
+
+        <h3>4.5 데이터 백업과 복원</h3>
+        
+        <h4>Export (백업)</h4>
+        <ul>
+            <li><strong>형식:</strong> CSV (UTF-8 with BOM)</li>
+            <li><strong>내용:</strong>
+                <ul>
+                    <li>accounts.csv: 모든 계정 정보</li>
+                    <li>payments.csv: 모든 납부 기록</li>
+                    <li>reminders.csv: 알림 설정</li>
+                </ul>
+            </li>
+            <li><strong>위치:</strong> 디바이스 Documents 폴더 또는 공유 기능 제공</li>
+            <li><strong>타임스탬프:</strong> 파일명에 날짜 포함 (BillManager_backup_20250929.zip)</li>
+        </ul>
+        
+        <h4>Import (복원)</h4>
+        <ul>
+            <li><strong>파일 선택:</strong> Document Picker</li>
+            <li><strong>유효성 검증:</strong>
+                <ul>
+                    <li>CSV 헤더 확인</li>
+                    <li>데이터 타입 체크</li>
+                    <li>중복 키 처리</li>
+                </ul>
+            </li>
+            <li><strong>오류 처리:</strong>
+                <ul>
+                    <li>실패 시 롤백</li>
+                    <li>오류 로그 제공</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>4.6 모든 작업 로그 처리 및 뷰어</h3>
+        
+        <h4>로그 기록 대상</h4>
+        <ul>
+            <li>Account 생성/수정/삭제</li>
+            <li>Payment 상태 변경</li>
+            <li>데이터 Import/Export</li>
+            <li>자동 Payment 생성</li>
+            <li>설정 변경</li>
+        </ul>
+        
+        <h4>로그 뷰어 기능</h4>
+        <ul>
+            <li><strong>필터링:</strong>
+                <ul>
+                    <li>날짜 범위</li>
+                    <li>작업 유형 (action)</li>
+                    <li>테이블명</li>
+                </ul>
+            </li>
+            <li><strong>정렬:</strong> 최신순 기본, 오름차순/내림차순 전환</li>
+            <li><strong>상세 보기:</strong> JSON 형식의 details 내용 표시</li>
+            <li><strong>검색:</strong> 키워드 검색 기능</li>
+            <li><strong>내보내기:</strong> 로그를 텍스트 파일로 저장</li>
+        </ul>
+
+        <h3>4.7 전체 데이터베이스 테이블 초기화 기능</h3>
+        
+        <h4>개발자 모드 메뉴</h4>
+        <ul>
+            <li><strong>Export Data:</strong> 현재 모든 데이터 CSV 백업</li>
+            <li><strong>Import Data:</strong> CSV 파일에서 데이터 복원</li>
+            <li><strong>Regenerate Payments (Skip Existing):</strong> 기존 Payment 유지하며 누락된 건만 생성</li>
+            <li><strong>Regenerate Payments (Delete & Recreate):</strong> 모든 Payment 삭제 후 재생성 (3개월치)</li>
+            <li><strong>Data Reset All:</strong> 모든 테이블 데이터 삭제 (DROP 후 CREATE)
