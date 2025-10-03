@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Bill Manager",
+    "slug": "bill-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.paradise.billmanager",
+      "infoPlist": {
+        "NSRemindersUsageDescription": "This app needs access to send you payment reminders.",
+        "NSCalendarsUsageDescription": "This app needs access to manage your payment schedule."
+      }
+    },
+    "android": {
+      "package": "com.paradise.billmanager",
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2c3e50"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
+  }
+}
