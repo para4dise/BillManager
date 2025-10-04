@@ -1,3 +1,12 @@
+/**
+ * File: src/database/accounts.js
+ * Description: Database CRUD operations for accounts table
+ * Version: 2.0.0
+ * Last Updated: 2025-10-04
+ * Changes: Added Phase 1 recurring fields to CREATE and UPDATE queries
+ *          (day_of_week, day_of_month, month_of_year, day_of_year)
+ */
+
 import { getDatabase } from './init';
 import { getCurrentDateTimeUTC } from '../utils/dateUtils';
 import { logAction } from './logs';
@@ -42,10 +51,11 @@ export const createAccount = async (accountData) => {
     const result = await db.runAsync(`
       INSERT INTO accounts (
         name, category, bank_account, notes, amount, currency,
-        repeats, start_date, has_end_date, end_date, is_active,
-        created_at, updated_at
+        repeats, start_date, has_end_date, end_date,
+        day_of_week, day_of_month, month_of_year, day_of_year,
+        is_active, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       accountData.name,
       accountData.category,
@@ -57,6 +67,10 @@ export const createAccount = async (accountData) => {
       accountData.start_date,
       accountData.has_end_date || 0,
       accountData.end_date || null,
+      accountData.day_of_week || null,
+      accountData.day_of_month || null,
+      accountData.month_of_year || null,
+      accountData.day_of_year || null,
       1,
       now,
       now,
@@ -89,6 +103,10 @@ export const updateAccount = async (id, accountData) => {
           start_date = ?,
           has_end_date = ?,
           end_date = ?,
+          day_of_week = ?,
+          day_of_month = ?,
+          month_of_year = ?,
+          day_of_year = ?,
           updated_at = ?
       WHERE id = ?
     `, [
@@ -102,6 +120,10 @@ export const updateAccount = async (id, accountData) => {
       accountData.start_date,
       accountData.has_end_date,
       accountData.end_date,
+      accountData.day_of_week,
+      accountData.day_of_month,
+      accountData.month_of_year,
+      accountData.day_of_year,
       now,
       id,
     ]);

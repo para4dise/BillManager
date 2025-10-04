@@ -1,3 +1,11 @@
+/**
+ * File: src/utils/paymentGenerator.js
+ * Description: Payment generation and management utilities
+ * Version: 2.0.0
+ * Last Updated: 2025-10-04
+ * Changes: Updated to support Phase 1 recurring options with recurringDetails parameter
+ */
+
 import { generatePaymentDates } from './dateUtils';
 import { getAllAccounts } from '../database/accounts';
 import { createPayment, paymentExists, deletePaymentsByAccountId } from '../database/payments';
@@ -6,11 +14,20 @@ import { logAction } from '../database/logs';
 // Generate payments for a single account
 export const generatePaymentsForAccount = async (account, skipExisting = true) => {
   try {
+    // Prepare recurring details for Phase 1
+    const recurringDetails = {
+      dayOfWeek: account.day_of_week,
+      dayOfMonth: account.day_of_month,
+      monthOfYear: account.month_of_year,
+      dayOfYear: account.day_of_year,
+    };
+    
     const dates = generatePaymentDates(
       account.start_date,
       account.repeats,
       3, // Next 3 months
-      account.has_end_date ? account.end_date : null
+      account.has_end_date ? account.end_date : null,
+      recurringDetails
     );
     
     let created = 0;

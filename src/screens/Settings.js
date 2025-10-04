@@ -1,3 +1,13 @@
+/**
+ * File: src/screens/Settings.js
+ * Description: Application settings screen with user preferences and developer options
+ * Version: 1.3.3
+ * Last Updated: 2025-10-04
+ * Changes: v1.3.3 - Simplified notification settings to single line format
+ *          v1.3.2 - Split time selection into hour and minute modals
+ *          v1.3.1 - Expanded time options and days (1-10)
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,6 +18,7 @@ import {
   Switch,
   Alert,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,14 +26,19 @@ import { COLORS } from '../constants/colors';
 import { LANGUAGES, CURRENCIES } from '../constants/categories';
 import { regeneratePaymentsForAllAccounts, generatePaymentsForAllAccounts } from '../utils/paymentGenerator';
 import { resetAllData, dropAllTables } from '../database/init';
+import { checkAndNotify } from '../utils/notificationUtils';
 
-const Settings = () => {
+const Settings = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const [userName, setUserName] = useState('');
   const [language, setLanguage] = useState('en');
   const [currency, setCurrency] = useState('USD');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [notificationTime, setNotificationTime] = useState('09:00');
+  const [notificationDaysBefore, setNotificationDaysBefore] = useState('3');
+  const [showHourModal, setShowHourModal] = useState(false);
+  const [showMinuteModal, setShowMinuteModal] = useState(false);
+  const [showDaysModal, setShowDaysModal] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
 
   useEffect(() => {
@@ -37,6 +53,7 @@ const Settings = () => {
         'currency',
         'notification_enabled',
         'notification_time',
+        'notification_days_before',
         'developer_mode',
       ]);
 
@@ -57,6 +74,9 @@ const Settings = () => {
               break;
             case 'notification_time':
               setNotificationTime(value);
+              break;
+            case 'notification_days_before':
+              setNotificationDaysBefore(value);
               break;
             case 'developer_mode':
               setDeveloperMode(value === 'true');
@@ -103,6 +123,50 @@ const Settings = () => {
     setDeveloperMode(value);
     await saveSetting('developer_mode', value);
   };
+
+  const handleTestNotification = async () => {
+    try {
+      await checkAndNotify();
+      Alert.alert('Test', 'Notification check completed. Check your notification tray.');
+    } catch (error) {
+      console.error('Error testing notification:', error);
+      Alert.alert('Error', 'Failed to send test notification');
+    }
+  };
+
+  const handleTimeSelect = async (time) => {
+    setNotificationTime(time);
+    await saveSetting('notification_time', time);
+    setShowHourModal(false);
+    setShowMinuteModal(false);
+  };
+
+  const handleHourSelect = async (hour) => {
+    const [_, minute] = notificationTime.split(':');
+    const newTime = `${hour}:${minute}`;
+    await handleTimeSelect(newTime);
+  };
+
+  const handleMinuteSelect = async (minute) => {
+    const [hour, _] = notificationTime.split(':');
+    const newTime = `${hour}:${minute}`;
+    await handleTimeSelect(newTime);
+  };
+
+  const handleDaysSelect = async (days) => {
+    setNotificationDaysBefore(days);
+    await saveSetting('notification_days_before', days);
+    setShowDaysModal(false);
+  };
+
+  // Hour options (0-23)
+  const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+
+  // Minute options (0, 5, 10, ..., 55)
+  const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+  // Days options (1-10)
+  const daysOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   const handleExportData = () => {
     Alert.alert(
@@ -301,17 +365,31 @@ const Settings = () => {
             notificationsEnabled,
             handleNotificationToggle
           )}
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>{t('settings.notificationTime')}</Text>
-            <TextInput
-              style={styles.input}
-              value={notificationTime}
-              onChangeText={setNotificationTime}
-              onBlur={() => saveSetting('notification_time', notificationTime)}
-              placeholder="HH:MM"
-              placeholderTextColor={COLORS.text.secondary}
-            />
+          <View style={styles.singleLineRow}>
+            <Text style={styles.inlineLabel}>at</Text>
+            <TouchableOpacity 
+              style={styles.selectInputTiny}
+              onPress={() => setShowHourModal(true)}
+            >
+              <Text style={styles.selectInputText}>{notificationTime.split(':')[0]}</Text>
+            </TouchableOpacity>
+            <Text style={styles.timeSeparator}>:</Text>
+            <TouchableOpacity 
+              style={styles.selectInputTiny}
+              onPress={() => setShowMinuteModal(true)}
+            >
+              <Text style={styles.selectInputText}>{notificationTime.split(':')[1]}</Text>
+            </TouchableOpacity>
+            <Text style={styles.inlineLabel}>in</Text>
+            <TouchableOpacity 
+              style={styles.selectInputTiny}
+              onPress={() => setShowDaysModal(true)}
+            >
+              <Text style={styles.selectInputText}>{notificationDaysBefore}</Text>
+            </TouchableOpacity>
+            <Text style={styles.inlineLabel}>days</Text>
           </View>
+          {renderButton('Test Notification Now', handleTestNotification)}
         </>
       ))}
 
@@ -343,13 +421,100 @@ const Settings = () => {
       {developerMode && renderSection(t('settings.developerMode'), (
         <>
           {renderButton(t('settings.viewLogs'), () => {
-            Alert.alert('Logs', 'Log viewer will be implemented');
+            navigation.navigate('LogViewer');
           })}
           {renderButton(t('settings.regenerateSkip'), handleRegeneratePaymentsSkip)}
           {renderButton(t('settings.regenerateDelete'), handleRegeneratePaymentsDelete, true)}
           {renderButton(t('settings.resetAll'), handleDataReset, true)}
         </>
       ))}
+      
+      {/* Hour Selection Modal */}
+      <Modal
+        visible={showHourModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowHourModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowHourModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Hour</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {hourOptions.map((hour) => (
+                <TouchableOpacity
+                  key={hour}
+                  style={styles.modalOption}
+                  onPress={() => handleHourSelect(hour)}
+                >
+                  <Text style={styles.modalOptionText}>{hour}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Minute Selection Modal */}
+      <Modal
+        visible={showMinuteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMinuteModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowMinuteModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Minute</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {minuteOptions.map((minute) => (
+                <TouchableOpacity
+                  key={minute}
+                  style={styles.modalOption}
+                  onPress={() => handleMinuteSelect(minute)}
+                >
+                  <Text style={styles.modalOptionText}>{minute}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Days Selection Modal */}
+      <Modal
+        visible={showDaysModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDaysModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowDaysModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Days Before Due Date</Text>
+            <ScrollView style={styles.modalScrollView}>
+              {daysOptions.map((days) => (
+                <TouchableOpacity
+                  key={days}
+                  style={styles.modalOption}
+                  onPress={() => handleDaysSelect(String(days))}
+                >
+                  <Text style={styles.modalOptionText}>{days} day{days > 1 ? 's' : ''}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 };
@@ -387,6 +552,35 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  timeSettingItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  singleLineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  inlineLabel: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingLeft: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   settingLabel: {
     fontSize: 16,
     color: COLORS.text.primary,
@@ -405,6 +599,85 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     minWidth: 100,
+  },
+  timeInput: {
+    minWidth: 70,
+  },
+  daysInput: {
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  daysLabel: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+  },
+  timeSeparator: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text.primary,
+    marginHorizontal: 4,
+  },
+  selectInput: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 70,
+    backgroundColor: COLORS.surface,
+  },
+  selectInputSmall: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 50,
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  selectInputText: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text.primary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalScrollView: {
+    maxHeight: 300,
+  },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: COLORS.text.primary,
+    textAlign: 'center',
   },
   button: {
     backgroundColor: COLORS.primary,

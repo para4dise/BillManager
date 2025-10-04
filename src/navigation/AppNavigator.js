@@ -1,8 +1,10 @@
 /**
- * AppNavigator.js
- * Version: 1.2
+ * File: src/navigation/AppNavigator.js
  * Description: Main navigation setup with tabs and stack navigators
- * Last Updated: 2025-10-02
+ * Version: 1.3.0
+ * Last Updated: 2025-10-04
+ * Changes: v1.3.0 - Added LogViewer screen to Settings stack
+ *          v1.2.0 - Initial version with tabs
  */
 
 import React from 'react';
@@ -18,6 +20,7 @@ import PaymentDetail from '../screens/PaymentDetail';
 import AccountList from '../screens/AccountList';
 import AccountDetail from '../screens/AccountDetail';
 import Settings from '../screens/Settings';
+import LogViewer from '../screens/LogViewer';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -90,6 +93,39 @@ const AccountStack = () => {
   );
 };
 
+// Settings Stack Navigator
+const SettingsStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: COLORS.primary,
+        },
+        headerTintColor: COLORS.text.inverse,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="SettingsScreen"
+        component={Settings}
+        options={{
+          title: 'Settings',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="LogViewer"
+        component={LogViewer}
+        options={{
+          title: 'Activity Logs',
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 const AppNavigator = () => {
   const { t } = useTranslation();
 
@@ -136,7 +172,7 @@ const AppNavigator = () => {
       />
       <Tab.Screen
         name="Settings"
-        component={Settings}
+        component={SettingsStack}
         options={{
           tabBarLabel: 'Settings',
           title: 'Settings',

@@ -1,3 +1,12 @@
+/**
+ * File: src/database/init.js
+ * Description: Database initialization and table creation with migration support
+ * Version: 2.0.0
+ * Last Updated: 2025-10-04
+ * Changes: Added Phase 1 recurring fields (day_of_week, day_of_month, month_of_year, day_of_year)
+ *          Added migration function to update existing tables
+ */
+
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'billmanager.db';
@@ -30,6 +39,9 @@ const createTables = async () => {
   const database = getDatabase();
   
   try {
+    // Run migrations first
+    await runMigrations();
+    
     // Accounts table
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS accounts (
@@ -44,6 +56,10 @@ const createTables = async () => {
         start_date TEXT NOT NULL,
         has_end_date INTEGER DEFAULT 0,
         end_date TEXT,
+        day_of_week INTEGER,
+        day_of_month INTEGER,
+        month_of_year INTEGER,
+        day_of_year INTEGER,
         is_active INTEGER DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -178,6 +194,70 @@ export const resetAllData = async () => {
 // Check if database is initialized
 export const isDatabaseInitialized = () => {
   return db !== null;
+};
+
+// Run database migrations
+const runMigrations = async () => {
+  const database = getDatabase();
+  
+  try {
+    // Check if accounts table exists
+    const tableInfo = await database.getAllAsync(`
+      PRAGMA table_info(accounts);
+    `);
+    
+    if (tableInfo.length > 0) {
+      // Check if new columns exist
+      const hasNewColumns = tableInfo.some(col => col.name === 'day_of_week');
+      
+      if (!hasNewColumns) {
+        console.log('Running migration: Adding recurring detail columns...');
+        
+        // Add new columns for Phase 1 recurring options
+        await database.execAsync(`
+          ALTER TABLE accounts ADD COLUMN day_of_week INTEGER;
+          ALTER TABLE accounts ADD COLUMN day_of_month INTEGER;
+          ALTER TABLE accounts ADD COLUMN month_of_year INTEGER;
+          ALTER TABLE accounts ADD COLUMN day_of_year INTEGER;
+        `);
+        
+        // Migrate existing data: extract day/week info from start_date
+        const accounts = await database.getAllAsync(`
+          SELECT id, start_date, repeats FROM accounts WHERE is_active = 1;
+        `);
+        
+        for (const account of accounts) {
+          const startDate = new Date(account.start_date);
+          
+          if (account.repeats === 'weekly') {
+            // Set day of week (0-6, Sunday-Saturday)
+            const dayOfWeek = startDate.getDay();
+            await database.runAsync(`
+              UPDATE accounts SET day_of_week = ? WHERE id = ?;
+            `, [dayOfWeek, account.id]);
+          } else if (account.repeats === 'monthly') {
+            // Set day of month (1-31)
+            const dayOfMonth = startDate.getDate();
+            await database.runAsync(`
+              UPDATE accounts SET day_of_month = ? WHERE id = ?;
+            `, [dayOfMonth, account.id]);
+          } else if (account.repeats === 'yearly') {
+            // Set month and day
+            const monthOfYear = startDate.getMonth() + 1; // 1-12
+            const dayOfYear = startDate.getDate();
+            await database.runAsync(`
+              UPDATE accounts SET month_of_year = ?, day_of_year = ? WHERE id = ?;
+            `, [monthOfYear, dayOfYear, account.id]);
+          }
+        }
+        
+        console.log('Migration completed successfully');
+      }
+    }
+  } catch (error) {
+    console.error('Error running migrations:', error);
+    // Don't throw - table might not exist yet
+  }
 };
 
 export default {

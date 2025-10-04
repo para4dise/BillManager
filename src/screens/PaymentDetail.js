@@ -1,8 +1,11 @@
 /**
- * PaymentDetail.js
- * Version: 2.4
- * Description: Improved note input positioning and size
- * Last Updated: 2025-10-02 18:15:00 KST (Asia/Seoul)
+ * File: src/screens/PaymentDetail.js
+ * Description: Payment detail screen with editing capabilities
+ * Version: 2.5.0
+ * Last Updated: 2025-10-04
+ * Changes: v2.5.0 - Fixed amount reset issue when toggling paid/unpaid status
+ *                    Now saves current amount before changing payment status
+ *          v2.4.0 - Improved note input positioning and size
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -176,12 +179,26 @@ const PaymentDetail = ({ route, navigation }) => {
 
   const handleTogglePaid = async (value) => {
     setIsPaid(value);
+    
+    // Validate and save current amount first
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      Alert.alert('Error', 'Please enter a valid amount before changing payment status');
+      setIsPaid(!value);
+      return;
+    }
+    
     try {
-      if (value) {
-        await markAsPaid(paymentId, note.trim());
-      } else {
-        await markAsUnpaid(paymentId);
-      }
+      // Save current amount and note along with paid status
+      await updatePayment(paymentId, {
+        ...payment,
+        amount: parsedAmount,
+        is_paid: value ? 1 : 0,
+        paid_date: value ? new Date().toISOString() : null,
+        note: note.trim(),
+      });
+      
+      // Reload to get updated data
       await loadPayment();
     } catch (error) {
       console.error('Error toggling payment status:', error);

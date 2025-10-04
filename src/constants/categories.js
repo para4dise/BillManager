@@ -1,3 +1,12 @@
+/**
+ * File: src/constants/categories.js
+ * Description: Application constants for categories, currencies, and recurring options
+ * Version: 2.0.0
+ * Last Updated: 2025-10-04
+ * Changes: Added WEEKDAYS, MONTHS, DAYS_IN_MONTH constants for Phase 1 recurring options
+ *          Added helper functions: getWeekdayName, getMonthName
+ */
+
 // Bill categories
 export const CATEGORIES = [
   { id: 'credit_card', key: 'credit_card', icon: '💳' },
@@ -18,6 +27,36 @@ export const REPEAT_OPTIONS = [
   { id: 'yearly', key: 'yearly', value: 'yearly' },
   { id: 'custom', key: 'custom', value: 'custom' },
 ];
+
+// Days of week (0 = Sunday)
+export const WEEKDAYS = [
+  { id: 0, key: 'sunday', short: 'Sun', name: 'Sunday' },
+  { id: 1, key: 'monday', short: 'Mon', name: 'Monday' },
+  { id: 2, key: 'tuesday', short: 'Tue', name: 'Tuesday' },
+  { id: 3, key: 'wednesday', short: 'Wed', name: 'Wednesday' },
+  { id: 4, key: 'thursday', short: 'Thu', name: 'Thursday' },
+  { id: 5, key: 'friday', short: 'Fri', name: 'Friday' },
+  { id: 6, key: 'saturday', short: 'Sat', name: 'Saturday' },
+];
+
+// Months
+export const MONTHS = [
+  { id: 1, key: 'january', short: 'Jan', name: 'January' },
+  { id: 2, key: 'february', short: 'Feb', name: 'February' },
+  { id: 3, key: 'march', short: 'Mar', name: 'March' },
+  { id: 4, key: 'april', short: 'Apr', name: 'April' },
+  { id: 5, key: 'may', short: 'May', name: 'May' },
+  { id: 6, key: 'june', short: 'Jun', name: 'June' },
+  { id: 7, key: 'july', short: 'Jul', name: 'July' },
+  { id: 8, key: 'august', short: 'Aug', name: 'August' },
+  { id: 9, key: 'september', short: 'Sep', name: 'September' },
+  { id: 10, key: 'october', short: 'Oct', name: 'October' },
+  { id: 11, key: 'november', short: 'Nov', name: 'November' },
+  { id: 12, key: 'december', short: 'Dec', name: 'December' },
+];
+
+// Days in month (1-31)
+export const DAYS_IN_MONTH = Array.from({ length: 31 }, (_, i) => i + 1);
 
 // Reminder units
 export const REMINDER_UNITS = [
@@ -74,4 +113,14 @@ export const getCurrencySymbol = (currencyCode) => {
 export const getRepeatLabel = (repeatValue) => {
   const repeat = REPEAT_OPTIONS.find(r => r.value === repeatValue);
   return repeat ? repeat.key : 'monthly';
+};
+
+export const getWeekdayName = (dayOfWeek) => {
+  const weekday = WEEKDAYS.find(w => w.id === dayOfWeek);
+  return weekday ? weekday.name : '';
+};
+
+export const getMonthName = (monthId) => {
+  const month = MONTHS.find(m => m.id === monthId);
+  return month ? month.name : '';
 };

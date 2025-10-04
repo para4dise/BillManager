@@ -1,3 +1,12 @@
+/**
+ * File: App.js
+ * Description: Main application entry point with database and notification initialization
+ * Version: 1.1.0
+ * Last Updated: 2025-10-04
+ * Changes: v1.1.0 - Added notification initialization
+ *          v1.0.0 - Initial version with database setup
+ */
+
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
@@ -7,6 +16,7 @@ import './src/i18n';
 import { initDatabase } from './src/database/init';
 import AppNavigator from './src/navigation/AppNavigator';
 import { COLORS } from './src/constants/colors';
+import { initializeNotifications } from './src/utils/notificationUtils';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -21,8 +31,8 @@ export default function App() {
       // Initialize database
       await initDatabase();
       
-      // Add any other initialization here
-      // e.g., check notifications permission, load settings, etc.
+      // Initialize notifications
+      await initializeNotifications();
       
       setIsReady(true);
     } catch (err) {

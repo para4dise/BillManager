@@ -1,4 +1,14 @@
-import { format, parseISO, addDays, addWeeks, addMonths as addMonthsFns, addYears, differenceInDays, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+/**
+ * File: src/utils/dateUtils.js
+ * Description: Date utility functions for payment scheduling and formatting
+ * Version: 2.1.1
+ * Last Updated: 2025-10-04
+ * Changes: v2.1.1 - Fixed to start from first repeat (iteration 1), not start_date itself
+ *          v2.1.0 - Modified to include past payments from start_date
+ *          v2.0.0 - Updated for Phase 1 recurring options
+ */
+
+import { format, parseISO, addDays, addWeeks, addMonths as addMonthsFns, addYears, differenceInDays, isAfter, isBefore, startOfDay, endOfDay, setDay, setDate, setMonth } from 'date-fns';
 
 // Get current date without time (local timezone)
 export const getCurrentDate = () => {
@@ -47,39 +57,97 @@ export const addMonths = (date, months) => {
   return addMonthsFns(d, months);
 };
 
-// Calculate next payment date based on repeat pattern
-export const getNextPaymentDate = (startDate, repeatType, count = 1) => {
+// Calculate next payment date based on repeat pattern (Phase 1)
+export const getNextPaymentDate = (startDate, repeatType, count = 1, recurringDetails = {}) => {
   const date = typeof startDate === 'string' ? parseISO(startDate) : startDate;
+  const { dayOfWeek, dayOfMonth, monthOfYear, dayOfYear } = recurringDetails;
   
   switch (repeatType) {
     case 'weekly':
+      if (dayOfWeek !== null && dayOfWeek !== undefined) {
+        // Set to specific day of week
+        let nextDate = setDay(date, dayOfWeek, { weekStartsOn: 0 });
+        // If the target day is before or same as start date, move to next week
+        if (!isAfter(nextDate, date)) {
+          nextDate = addWeeks(nextDate, 1);
+        }
+        // Add weeks based on count
+        return addWeeks(nextDate, count - 1);
+      }
       return addWeeks(date, count);
+      
     case 'monthly':
+      if (dayOfMonth !== null && dayOfMonth !== undefined) {
+        // Set to specific day of month
+        let nextDate = setDate(date, Math.min(dayOfMonth, 28)); // Safe day
+        
+        // If the target day is before or same as start date, move to next month
+        if (!isAfter(nextDate, date)) {
+          nextDate = addMonthsFns(nextDate, 1);
+        }
+        
+        // Add months based on count
+        nextDate = addMonthsFns(nextDate, count - 1);
+        
+        // Handle day of month overflow (e.g., Feb 31 -> Feb 28/29)
+        try {
+          nextDate = setDate(nextDate, dayOfMonth);
+        } catch (e) {
+          // If day doesn't exist in month, use last day of month
+          const lastDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+          nextDate = setDate(nextDate, Math.min(dayOfMonth, lastDayOfMonth));
+        }
+        
+        return nextDate;
+      }
       return addMonthsFns(date, count);
+      
     case 'yearly':
+      if (monthOfYear !== null && monthOfYear !== undefined && dayOfYear !== null && dayOfYear !== undefined) {
+        // Set to specific month and day
+        let nextDate = new Date(date.getFullYear(), monthOfYear - 1, 1);
+        
+        // Handle day overflow
+        const lastDayOfMonth = new Date(nextDate.getFullYear(), monthOfYear, 0).getDate();
+        const safeDay = Math.min(dayOfYear, lastDayOfMonth);
+        nextDate = setDate(nextDate, safeDay);
+        
+        // If the target date is before or same as start date, move to next year
+        if (!isAfter(nextDate, date)) {
+          nextDate = addYears(nextDate, 1);
+          // Reapply day (for leap year handling)
+          const lastDay = new Date(nextDate.getFullYear(), monthOfYear, 0).getDate();
+          nextDate = setDate(nextDate, Math.min(dayOfYear, lastDay));
+        }
+        
+        // Add years based on count
+        nextDate = addYears(nextDate, count - 1);
+        
+        // Reapply day (for leap year handling)
+        const finalLastDay = new Date(nextDate.getFullYear(), monthOfYear, 0).getDate();
+        nextDate = setDate(nextDate, Math.min(dayOfYear, finalLastDay));
+        
+        return nextDate;
+      }
       return addYears(date, count);
+      
     default:
       return addMonthsFns(date, count); // Default to monthly
   }
 };
 
-// Generate payment dates for next N months
-export const generatePaymentDates = (startDate, repeatType, months = 3, endDate = null) => {
+// Generate payment dates for next N months (Phase 1)
+export const generatePaymentDates = (startDate, repeatType, months = 3, endDate = null, recurringDetails = {}) => {
   const dates = [];
   const start = typeof startDate === 'string' ? parseISO(startDate) : startDate;
   const end = endDate ? (typeof endDate === 'string' ? parseISO(endDate) : endDate) : null;
   const currentDate = getCurrentDate();
   
-  let nextDate = start;
-  let iteration = 0;
+  // Start from iteration 1 (first repeat), not 0 (start date itself)
+  let iteration = 1;
+  let nextDate = getNextPaymentDate(start, repeatType, iteration, recurringDetails);
   
-  // Start from current date or start date, whichever is later
-  while (isBefore(nextDate, currentDate)) {
-    iteration++;
-    nextDate = getNextPaymentDate(start, repeatType, iteration);
-  }
-  
-  // Generate dates for next N months
+  // Generate dates from first repeat up to current + N months
   const maxDate = addMonthsFns(currentDate, months);
   
   while (isBefore(nextDate, maxDate) || format(nextDate, 'yyyy-MM') === format(maxDate, 'yyyy-MM')) {
@@ -88,9 +156,16 @@ export const generatePaymentDates = (startDate, repeatType, months = 3, endDate 
       break;
     }
     
+    // Add date (including past dates from start_date)
     dates.push(getDateString(nextDate));
     iteration++;
-    nextDate = getNextPaymentDate(start, repeatType, iteration);
+    nextDate = getNextPaymentDate(start, repeatType, iteration, recurringDetails);
+    
+    // Safety check to prevent infinite loop
+    if (iteration > 1000) {
+      console.error('Too many iterations in generatePaymentDates');
+      break;
+    }
   }
   
   return dates;

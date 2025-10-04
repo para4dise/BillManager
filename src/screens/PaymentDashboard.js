@@ -1,11 +1,15 @@
 /**
- * PaymentDashboard.js
- * Version: 1.2
- * Description: Payment dashboard with month navigation and paid items grayed out
- * Last Updated: 2025-10-02 18:30:00 KST (Asia/Seoul)
+ * File: src/screens/PaymentDashboard.js
+ * Description: Payment dashboard with month navigation and swipe-to-toggle functionality
+ * Version: 2.0.5
+ * Last Updated: 2025-10-04
+ * Changes: v2.0.5 - Adjusted paid text alignment (reduced left padding to 20)
+ *          v2.0.4 - Fixed unpaid text spacing
+ *          v2.0.3 - Improved swipe action text spacing
+ *          v2.0.2 - Fixed scroll-to-top issue
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,12 +17,14 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { COLORS } from '../constants/colors';
 import { formatDate, getMonthName, getDayOfWeek, getDayOfMonth } from '../utils/dateUtils';
-import { getPaymentsByMonth } from '../database/payments';
+import { getPaymentsByMonth, updatePayment, markAsPaid, markAsUnpaid } from '../database/payments';
 import { getCurrencySymbol } from '../constants/categories';
 
 const PaymentDashboard = ({ navigation }) => {
@@ -28,6 +34,7 @@ const PaymentDashboard = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [monthlyStats, setMonthlyStats] = useState({ total: 0, paid: 0 });
+  const swipeableRefs = useRef({});
 
   useFocusEffect(
     useCallback(() => {
@@ -98,6 +105,106 @@ const PaymentDashboard = ({ navigation }) => {
     return nextMonth <= maxDate;
   };
 
+  const handleSwipeLeft = async (payment) => {
+    // Left swipe = Mark as Unpaid (only for paid items)
+    if (!payment.is_paid) {
+      swipeableRefs.current[payment.id]?.close();
+      return;
+    }
+
+    try {
+      await markAsUnpaid(payment.id);
+      
+      // Update local state instead of reloading
+      setPayments(prevPayments => 
+        prevPayments.map(p => 
+          p.id === payment.id 
+            ? { ...p, is_paid: 0, paid_date: null }
+            : p
+        )
+      );
+      
+      // Update stats
+      setMonthlyStats(prev => ({
+        ...prev,
+        paid: prev.paid - payment.amount
+      }));
+      
+      swipeableRefs.current[payment.id]?.close();
+    } catch (error) {
+      console.error('Error marking as unpaid:', error);
+    }
+  };
+
+  const handleSwipeRight = async (payment) => {
+    // Right swipe = Mark as Paid (only for unpaid items)
+    if (payment.is_paid) {
+      swipeableRefs.current[payment.id]?.close();
+      return;
+    }
+
+    try {
+      await markAsPaid(payment.id, '');
+      
+      // Update local state instead of reloading
+      setPayments(prevPayments => 
+        prevPayments.map(p => 
+          p.id === payment.id 
+            ? { ...p, is_paid: 1, paid_date: new Date().toISOString() }
+            : p
+        )
+      );
+      
+      // Update stats
+      setMonthlyStats(prev => ({
+        ...prev,
+        paid: prev.paid + payment.amount
+      }));
+      
+      swipeableRefs.current[payment.id]?.close();
+    } catch (error) {
+      console.error('Error marking as paid:', error);
+    }
+  };
+
+  const renderLeftActions = (progress, dragX, payment) => {
+    // Only show for paid items (left swipe = unpaid)
+    if (!payment.is_paid) return null;
+
+    const trans = dragX.interpolate({
+      inputRange: [0, 100],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <View style={styles.swipeActionLeft}>
+        <Animated.Text style={[styles.swipeActionText, { opacity: trans }]}>
+          ✕ Unpaid
+        </Animated.Text>
+      </View>
+    );
+  };
+
+  const renderRightActions = (progress, dragX, payment) => {
+    // Only show for unpaid items (right swipe = paid)
+    if (payment.is_paid) return null;
+
+    const trans = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <View style={styles.swipeActionRight}>
+        <Animated.Text style={[styles.swipeActionText, { opacity: trans }]}>
+          ✓ Paid
+        </Animated.Text>
+      </View>
+    );
+  };
+
   const renderMonthHeader = () => {
     const currency = getCurrencySymbol('USD');
     const monthYear = `${getMonthName(selectedMonth.toISOString())} ${selectedMonth.getFullYear()}`;
@@ -136,39 +243,49 @@ const PaymentDashboard = ({ navigation }) => {
     const isPaid = status === 'paid';
     
     return (
-      <TouchableOpacity
-        style={[styles.paymentItem, { borderLeftColor: getStatusColor(status) }]}
-        onPress={() => handlePaymentPress(item)}
+      <Swipeable
+        ref={(ref) => swipeableRefs.current[item.id] = ref}
+        renderLeftActions={(progress, dragX) => renderLeftActions(progress, dragX, item)}
+        renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}
+        onSwipeableLeftOpen={() => handleSwipeLeft(item)}
+        onSwipeableRightOpen={() => handleSwipeRight(item)}
+        overshootLeft={false}
+        overshootRight={false}
       >
-        <View style={styles.dateColumn}>
-          <Text style={[styles.dayOfWeek, isPaid && styles.paidText]}>
-            {getDayOfWeek(item.due_date)}
-          </Text>
-          <Text style={[styles.dayOfMonth, isPaid && styles.paidText]}>
-            {getDayOfMonth(item.due_date)}
-          </Text>
-        </View>
-        
-        <View style={styles.infoColumn}>
-          <Text style={[styles.category, isPaid && styles.paidText]}>
-            {item.category}
-          </Text>
-          <Text style={[styles.accountName, isPaid && styles.paidText]}>
-            {item.account_name}
-          </Text>
-          {item.bank_account && (
-            <Text style={[styles.bankAccount, isPaid && styles.paidText]}>
-              {item.bank_account}
+        <TouchableOpacity
+          style={[styles.paymentItem, { borderLeftColor: getStatusColor(status) }]}
+          onPress={() => handlePaymentPress(item)}
+        >
+          <View style={styles.dateColumn}>
+            <Text style={[styles.dayOfWeek, isPaid && styles.paidText]}>
+              {getDayOfWeek(item.due_date)}
             </Text>
-          )}
-        </View>
-        
-        <View style={styles.amountColumn}>
-          <Text style={[styles.amount, isPaid && styles.amountPaid]}>
-            {currency}{item.amount.toFixed(2)}
-          </Text>
-        </View>
-      </TouchableOpacity>
+            <Text style={[styles.dayOfMonth, isPaid && styles.paidText]}>
+              {getDayOfMonth(item.due_date)}
+            </Text>
+          </View>
+          
+          <View style={styles.infoColumn}>
+            <Text style={[styles.category, isPaid && styles.paidText]}>
+              {item.category}
+            </Text>
+            <Text style={[styles.accountName, isPaid && styles.paidText]}>
+              {item.account_name}
+            </Text>
+            {item.bank_account && (
+              <Text style={[styles.bankAccount, isPaid && styles.paidText]}>
+                {item.bank_account}
+              </Text>
+            )}
+          </View>
+          
+          <View style={styles.amountColumn}>
+            <Text style={[styles.amount, isPaid && styles.amountPaid]}>
+              {currency}{item.amount.toFixed(2)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 
@@ -355,6 +472,31 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: COLORS.text.secondary,
+  },
+  swipeActionLeft: {
+    backgroundColor: COLORS.warning,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: 20,
+    paddingRight: 30,
+    marginBottom: 8,
+    borderRadius: 8,
+    minWidth: 100,
+  },
+  swipeActionRight: {
+    backgroundColor: COLORS.success,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingLeft: 20,
+    paddingRight: 20,
+    marginBottom: 8,
+    borderRadius: 8,
+    minWidth: 100,
+  },
+  swipeActionText: {
+    color: COLORS.text.inverse,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
