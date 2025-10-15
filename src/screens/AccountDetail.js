@@ -1,13 +1,14 @@
 /**
  * File: src/screens/AccountDetail.js
  * Description: Account creation and editing screen with Phase 1 recurring options
- * Version: 2.0.0
- * Last Updated: 2025-10-04
- * Changes: Added Phase 1 recurring options UI
- *          - Weekly: Day of Week selection
- *          - Monthly: Day of Month selection (1-31)
- *          - Yearly: Month and Day selection
- *          Added 4 new modals for recurring option selection
+ * Version: 2.3.1
+ * Last Updated: 2025-10-05
+ * Changes: v2.3.1 - Updated Payment History display: Paid Date (with on-time/late color) + small Due Date
+ *          v2.3.0 - Changed Payment History to read-only: shows Due Date, Paid Date, and Amount
+ *          v2.2.1 - Fixed navigation to PaymentDetail (nested navigator)
+ *          v2.2.0 - Improved Payment History: show only past payments, default 3 items with "View All" button
+ *          v2.1.0 - Added collapsible Payment History section (LIFO order)
+ *          v2.0.0 - Added Phase 1 recurring options UI
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -23,13 +24,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  FlatList,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../constants/colors';
 import { CATEGORIES, REPEAT_OPTIONS, CURRENCIES, WEEKDAYS, MONTHS, DAYS_IN_MONTH } from '../constants/categories';
 import { createAccount, updateAccount, getAccountById } from '../database/accounts';
 import { generatePaymentsForAccount } from '../utils/paymentGenerator';
-import { getDateString, getCurrentDate } from '../utils/dateUtils';
+import { getDateString, getCurrentDate, formatDate } from '../utils/dateUtils';
+import { getPaymentsByAccountId } from '../database/payments';
 
 const AccountDetail = ({ route, navigation }) => {
   const { accountId } = route.params || {};
@@ -68,8 +71,11 @@ const AccountDetail = ({ route, navigation }) => {
   const [monthOfYear, setMonthOfYear] = useState(null);
   const [dayOfYear, setDayOfYear] = useState(null);
 
+  // Payment history state
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
   useEffect(() => {
-    // Update header button whenever form data changes
     navigation.setOptions({
       title: isEditMode ? 'Edit Account' : 'Add Account',
       headerRight: () => (
@@ -85,6 +91,7 @@ const AccountDetail = ({ route, navigation }) => {
   useEffect(() => {
     if (isEditMode) {
       loadAccount();
+      loadPaymentHistory();
     }
   }, [accountId, isEditMode]);
 
@@ -105,7 +112,6 @@ const AccountDetail = ({ route, navigation }) => {
           setEndDate(new Date(account.end_date));
         }
         
-        // Load recurring detail fields
         setDayOfWeek(account.day_of_week);
         setDayOfMonth(account.day_of_month);
         setMonthOfYear(account.month_of_year);
@@ -117,13 +123,31 @@ const AccountDetail = ({ route, navigation }) => {
     }
   };
 
+  const loadPaymentHistory = async () => {
+    try {
+      const payments = await getPaymentsByAccountId(accountId);
+      
+      // Filter only past payments (due_date <= today)
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+      
+      const pastPayments = payments.filter(p => {
+        const dueDate = new Date(p.due_date);
+        return dueDate <= today;
+      });
+      
+      // Sort by due_date DESC (LIFO - most recent first)
+      const sortedPayments = pastPayments.sort((a, b) => 
+        new Date(b.due_date) - new Date(a.due_date)
+      );
+      
+      setPaymentHistory(sortedPayments);
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+    }
+  };
+
   const handleSave = async () => {
-    // Debug logging
-    console.log('Saving account with name:', name);
-    console.log('Name length:', name.length);
-    console.log('Trimmed name:', name.trim());
-    
-    // Validation
     if (!name || !name.trim()) {
       Alert.alert('Error', 'Please enter account name');
       return;
@@ -134,7 +158,6 @@ const AccountDetail = ({ route, navigation }) => {
       return;
     }
 
-    // Validate amount if entered
     if (amount && amount.trim() !== '') {
       const parsedAmount = parseFloat(amount);
       if (isNaN(parsedAmount) || parsedAmount < 0) {
@@ -163,18 +186,13 @@ const AccountDetail = ({ route, navigation }) => {
         day_of_year: dayOfYear,
       };
 
-      console.log('Account data to save:', accountData);
-
       if (isEditMode) {
-        // Update existing account
         await updateAccount(accountId, accountData);
-        // Regenerate payments for this account
         await generatePaymentsForAccount({ id: accountId, ...accountData }, true);
+        await loadPaymentHistory();
         Alert.alert('Success', 'Account updated successfully');
       } else {
-        // Create new account
         const newAccountId = await createAccount(accountData);
-        // Generate initial payments
         await generatePaymentsForAccount({ id: newAccountId, ...accountData }, false);
         Alert.alert('Success', 'Account created successfully');
       }
@@ -197,12 +215,11 @@ const AccountDetail = ({ route, navigation }) => {
     setRepeats(repeatValue);
     setShowRepeatModal(false);
     
-    // Initialize default values based on repeat type
     const today = new Date();
     if (repeatValue === 'weekly' && dayOfWeek === null) {
-      setDayOfWeek(today.getDay()); // Default to today's weekday
+      setDayOfWeek(today.getDay());
     } else if (repeatValue === 'monthly' && dayOfMonth === null) {
-      setDayOfMonth(today.getDate()); // Default to today's date
+      setDayOfMonth(today.getDate());
     } else if (repeatValue === 'yearly') {
       if (monthOfYear === null) setMonthOfYear(today.getMonth() + 1);
       if (dayOfYear === null) setDayOfYear(today.getDate());
@@ -226,18 +243,88 @@ const AccountDetail = ({ route, navigation }) => {
     setEndDate(currentDate);
   };
 
+  const getPaymentStatus = (payment) => {
+    if (payment.is_paid) return 'paid';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(payment.due_date);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    if (dueDate < today) return 'overdue';
+    
+    const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 3) return 'dueSoon';
+    
+    return 'unpaid';
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'overdue': return COLORS.status.overdue;
+      case 'dueSoon': return COLORS.status.dueSoon;
+      case 'paid': return COLORS.status.paid;
+      default: return COLORS.status.unpaid;
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'overdue': return 'Overdue';
+      case 'dueSoon': return 'Due Soon';
+      case 'paid': return 'Paid';
+      default: return 'Unpaid';
+    }
+  };
+
+  const renderPaymentHistoryItem = ({ item }) => {
+    const isPaid = item.is_paid;
+    const dueDate = new Date(item.due_date);
+    dueDate.setHours(23, 59, 59, 999); // End of due date
+    const paidDate = item.paid_date ? new Date(item.paid_date) : null;
+    
+    // Check if paid on time or late
+    const isOnTime = paidDate && paidDate <= dueDate;
+    const statusColor = isPaid ? (isOnTime ? COLORS.success : COLORS.error) : COLORS.status.unpaid;
+
+    return (
+      <View style={styles.historyItem}>
+        <View style={styles.historyItemLeft}>
+          <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+          <View>
+            {item.paid_date ? (
+              <>
+                <Text style={[styles.paidDateText, { color: statusColor }]}>
+                  Paid: {formatDate(item.paid_date)}
+                </Text>
+                <Text style={styles.dueDateSmall}>
+                  Due: {formatDate(item.due_date)}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.historyDate}>
+                {formatDate(item.due_date)}
+              </Text>
+            )}
+          </View>
+        </View>
+        <Text style={styles.historyAmount}>
+          ${item.amount.toFixed(2)}
+        </Text>
+      </View>
+    );
+  };
+
   const selectedCategory = CATEGORIES.find(c => c.id === category);
   const selectedRepeat = REPEAT_OPTIONS.find(r => r.value === repeats);
   const selectedCurrency = CURRENCIES.find(c => c.code === currency);
 
   const handleNotesFocus = () => {
-    // Scroll to show Notes section title just below header (same as PaymentDetail)
     setTimeout(() => {
       if (notesRef.current && scrollViewRef.current) {
         notesRef.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {
-            // Scroll so note section title appears near top (just below header)
             scrollViewRef.current.scrollTo({ y: y - 10, animated: true });
           },
           () => {}
@@ -259,7 +346,6 @@ const AccountDetail = ({ route, navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={true}
         >
-          {/* Account Name */}
           <View style={styles.section}>
             <Text style={styles.label}>Account Name</Text>
             <TextInput
@@ -272,7 +358,6 @@ const AccountDetail = ({ route, navigation }) => {
             />
           </View>
 
-          {/* Category */}
           <View style={styles.section}>
             <Text style={styles.label}>Category</Text>
             <TouchableOpacity style={styles.selectButton} onPress={() => setShowCategoryModal(true)}>
@@ -282,7 +367,6 @@ const AccountDetail = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Bank Account */}
           <View style={styles.section}>
             <Text style={styles.label}>Bank Account</Text>
             <TextInput
@@ -294,7 +378,6 @@ const AccountDetail = ({ route, navigation }) => {
             />
           </View>
 
-          {/* Amount */}
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
             <View style={styles.row}>
@@ -314,11 +397,9 @@ const AccountDetail = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Recurring Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recurring Payment</Text>
 
-            {/* Repeats */}
             <Text style={styles.label}>Repeats</Text>
             <TouchableOpacity style={styles.selectButton} onPress={() => setShowRepeatModal(true)}>
               <Text style={styles.selectButtonText}>
@@ -326,7 +407,6 @@ const AccountDetail = ({ route, navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Weekly: Day of Week */}
             {repeats === 'weekly' && (
               <>
                 <Text style={styles.label}>Day of Week</Text>
@@ -338,7 +418,6 @@ const AccountDetail = ({ route, navigation }) => {
               </>
             )}
 
-            {/* Monthly: Day of Month */}
             {repeats === 'monthly' && (
               <>
                 <Text style={styles.label}>Day of Month</Text>
@@ -350,7 +429,6 @@ const AccountDetail = ({ route, navigation }) => {
               </>
             )}
 
-            {/* Yearly: Month and Day */}
             {repeats === 'yearly' && (
               <>
                 <Text style={styles.label}>Month</Text>
@@ -369,7 +447,6 @@ const AccountDetail = ({ route, navigation }) => {
               </>
             )}
 
-            {/* Start Date */}
             <Text style={styles.label}>Starts On</Text>
             <TouchableOpacity
               style={styles.dateButton}
@@ -389,7 +466,6 @@ const AccountDetail = ({ route, navigation }) => {
               />
             )}
 
-            {/* Has End Date */}
             <View style={styles.switchRow}>
               <Text style={styles.label}>Has End Date</Text>
               <Switch
@@ -400,7 +476,6 @@ const AccountDetail = ({ route, navigation }) => {
               />
             </View>
 
-            {/* End Date */}
             {hasEndDate && (
               <>
                 <Text style={styles.label}>End Date</Text>
@@ -426,7 +501,6 @@ const AccountDetail = ({ route, navigation }) => {
             )}
           </View>
 
-          {/* Notes */}
           <View style={styles.section} ref={notesRef}>
             <Text style={styles.label}>Notes</Text>
             <TextInput
@@ -441,12 +515,46 @@ const AccountDetail = ({ route, navigation }) => {
             />
           </View>
 
-          {/* Add spacing at bottom */}
+          {isEditMode && paymentHistory.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Payment History</Text>
+              
+              <FlatList
+                data={showAllHistory ? paymentHistory : paymentHistory.slice(0, 3)}
+                renderItem={renderPaymentHistoryItem}
+                keyExtractor={(item) => item.id.toString()}
+                scrollEnabled={false}
+                style={styles.historyList}
+              />
+              
+              {paymentHistory.length > 3 && !showAllHistory && (
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => setShowAllHistory(true)}
+                >
+                  <Text style={styles.viewAllButtonText}>
+                    View All ({paymentHistory.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {showAllHistory && paymentHistory.length > 3 && (
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => setShowAllHistory(false)}
+                >
+                  <Text style={styles.viewAllButtonText}>
+                    Show Less
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Category Modal */}
       <Modal
         visible={showCategoryModal}
         transparent={true}
@@ -477,7 +585,6 @@ const AccountDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Repeat Modal */}
       <Modal
         visible={showRepeatModal}
         transparent={true}
@@ -508,7 +615,6 @@ const AccountDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Currency Modal */}
       <Modal
         visible={showCurrencyModal}
         transparent={true}
@@ -539,7 +645,6 @@ const AccountDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Weekday Modal */}
       <Modal
         visible={showWeekdayModal}
         transparent={true}
@@ -571,7 +676,6 @@ const AccountDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Month Modal */}
       <Modal
         visible={showMonthModal}
         transparent={true}
@@ -603,7 +707,6 @@ const AccountDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Day of Month Modal */}
       <Modal
         visible={showDayOfMonthModal}
         transparent={true}
@@ -635,7 +738,6 @@ const AccountDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Day of Year Modal */}
       <Modal
         visible={showDayOfYearModal}
         transparent={true}
@@ -756,6 +858,74 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  historyList: {
+    marginBottom: 8,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.border,
+  },
+  historyItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  historyDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  paidDateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  dueDateSmall: {
+    fontSize: 11,
+    color: COLORS.text.secondary,
+  },
+  historyStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  historyAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text.primary,
+  },
+  paidText: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  viewAllButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   modalOverlay: {
     flex: 1,

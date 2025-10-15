@@ -1,10 +1,10 @@
 /**
  * File: src/screens/PaymentDetail.js
  * Description: Payment detail screen with editing capabilities
- * Version: 2.5.0
- * Last Updated: 2025-10-04
- * Changes: v2.5.0 - Fixed amount reset issue when toggling paid/unpaid status
- *                    Now saves current amount before changing payment status
+ * Version: 2.6.0
+ * Last Updated: 2025-10-05
+ * Changes: v2.6.0 - Added editable Paid Date field with DateTimePicker
+ *          v2.5.0 - Fixed amount reset issue when toggling paid/unpaid status
  *          v2.4.0 - Improved note input positioning and size
  */
 
@@ -21,6 +21,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../constants/colors';
 import { getCurrencySymbol } from '../constants/categories';
 import { formatDate } from '../utils/dateUtils';
@@ -34,6 +35,8 @@ const PaymentDetail = ({ route, navigation }) => {
   const [defaultAmount, setDefaultAmount] = useState('');
   const [isAmountModified, setIsAmountModified] = useState(false);
   const [note, setNote] = useState('');
+  const [paidDate, setPaidDate] = useState(new Date());
+  const [showPaidDatePicker, setShowPaidDatePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const amountInputRef = useRef(null);
   const noteInputRef = useRef(null);
@@ -46,7 +49,6 @@ const PaymentDetail = ({ route, navigation }) => {
   }, [paymentId]);
 
   useEffect(() => {
-    // Set navigation header buttons
     navigation.setOptions({
       title: payment ? payment.account_name : 'Payment Detail',
       headerRight: () => (
@@ -57,7 +59,7 @@ const PaymentDetail = ({ route, navigation }) => {
         </TouchableOpacity>
       ),
     });
-  }, [payment, navigation, amount, note, isPaid]);
+  }, [payment, navigation, amount, note, isPaid, paidDate]);
 
   const loadPayment = async () => {
     try {
@@ -70,8 +72,12 @@ const PaymentDetail = ({ route, navigation }) => {
         setAmount(formattedAmount);
         setDefaultAmount(formattedAmount);
         
-        // Check if amount has been modified from account's original amount
-        // We need to get the account to compare
+        if (paymentData.paid_date) {
+          setPaidDate(new Date(paymentData.paid_date));
+        } else {
+          setPaidDate(new Date());
+        }
+        
         const { getAccountById } = require('../database/accounts');
         const accountData = await getAccountById(paymentData.account_id);
         if (accountData && accountData.amount) {
@@ -92,14 +98,10 @@ const PaymentDetail = ({ route, navigation }) => {
   };
 
   const handleAmountFocus = () => {
-    // Only clear if amount has NOT been modified
     if (!isAmountModified) {
-      // User wants to change default amount, clear the field
       setAmount('');
     }
-    // If already modified, keep the value for editing
     
-    // Scroll to amount section
     setTimeout(() => {
       if (amountSectionRef.current && scrollViewRef.current) {
         amountSectionRef.current.measureLayout(
@@ -114,7 +116,6 @@ const PaymentDetail = ({ route, navigation }) => {
   };
 
   const handleAmountBlur = () => {
-    // If amount is empty, restore default amount
     if (!amount || amount.trim() === '') {
       setAmount(defaultAmount);
       setIsAmountModified(false);
@@ -122,28 +123,23 @@ const PaymentDetail = ({ route, navigation }) => {
   };
 
   const handleAmountChange = (text) => {
-    // Allow only numbers and one decimal point
     const validText = text.replace(/[^0-9.]/g, '');
-    // Prevent multiple decimal points
     const parts = validText.split('.');
     if (parts.length > 2) {
       return;
     }
     setAmount(validText);
-    // Mark as modified when user types
     if (validText !== defaultAmount) {
       setIsAmountModified(true);
     }
   };
 
   const handleNoteFocus = () => {
-    // Scroll to show "Add Note" title just below header
     setTimeout(() => {
       if (noteSectionRef.current && scrollViewRef.current) {
         noteSectionRef.current.measureLayout(
           scrollViewRef.current,
           (x, y) => {
-            // Scroll so note section title appears near top (just below header)
             scrollViewRef.current.scrollTo({ y: y - 10, animated: true });
           },
           () => {}
@@ -152,8 +148,14 @@ const PaymentDetail = ({ route, navigation }) => {
     }, 200);
   };
 
+  const onPaidDateChange = (event, selectedDate) => {
+    setShowPaidDatePicker(false);
+    if (selectedDate) {
+      setPaidDate(selectedDate);
+    }
+  };
+
   const handleSave = async () => {
-    // Validate amount - allow 0.00
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount < 0) {
       Alert.alert('Error', 'Please enter a valid amount (0 or greater)');
@@ -165,7 +167,7 @@ const PaymentDetail = ({ route, navigation }) => {
         ...payment,
         amount: parsedAmount,
         is_paid: isPaid ? 1 : 0,
-        paid_date: isPaid ? new Date().toISOString() : null,
+        paid_date: isPaid ? paidDate.toISOString() : null,
         note: note.trim(),
       });
       
@@ -180,7 +182,11 @@ const PaymentDetail = ({ route, navigation }) => {
   const handleTogglePaid = async (value) => {
     setIsPaid(value);
     
-    // Validate and save current amount first
+    // If marking as paid and no paid date set, use current date
+    if (value && !payment.paid_date) {
+      setPaidDate(new Date());
+    }
+    
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount < 0) {
       Alert.alert('Error', 'Please enter a valid amount before changing payment status');
@@ -189,16 +195,14 @@ const PaymentDetail = ({ route, navigation }) => {
     }
     
     try {
-      // Save current amount and note along with paid status
       await updatePayment(paymentId, {
         ...payment,
         amount: parsedAmount,
         is_paid: value ? 1 : 0,
-        paid_date: value ? new Date().toISOString() : null,
+        paid_date: value ? paidDate.toISOString() : null,
         note: note.trim(),
       });
       
-      // Reload to get updated data
       await loadPayment();
     } catch (error) {
       console.error('Error toggling payment status:', error);
@@ -274,12 +278,10 @@ const PaymentDetail = ({ route, navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={true}
       >
-        {/* Status Badge */}
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
           <Text style={styles.statusText}>{getStatusText()}</Text>
         </View>
 
-        {/* Account Info */}
         <View style={styles.section}>
           <Text style={styles.accountName}>{payment.account_name}</Text>
           <Text style={styles.category}>{payment.category}</Text>
@@ -288,7 +290,6 @@ const PaymentDetail = ({ route, navigation }) => {
           )}
         </View>
 
-        {/* Payment Info */}
         <View 
           ref={amountSectionRef}
           style={styles.infoSection}
@@ -298,7 +299,6 @@ const PaymentDetail = ({ route, navigation }) => {
             <Text style={styles.infoValue}>{formatDate(payment.due_date)}</Text>
           </View>
           
-          {/* Editable Amount */}
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Amount</Text>
             <View style={styles.amountInputContainer}>
@@ -319,15 +319,29 @@ const PaymentDetail = ({ route, navigation }) => {
             </View>
           </View>
 
-          {payment.paid_date && (
+          {isPaid && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Paid Date</Text>
-              <Text style={styles.infoValue}>{formatDate(payment.paid_date)}</Text>
+              <TouchableOpacity
+                onPress={() => setShowPaidDatePicker(true)}
+                style={styles.dateButton}
+              >
+                <Text style={styles.dateButtonText}>{formatDate(paidDate.toISOString())}</Text>
+              </TouchableOpacity>
             </View>
+          )}
+
+          {showPaidDatePicker && (
+            <DateTimePicker
+              value={paidDate}
+              mode="date"
+              display="default"
+              onChange={onPaidDateChange}
+              maximumDate={new Date()}
+            />
           )}
         </View>
 
-        {/* Mark as Paid Switch */}
         <View style={styles.section}>
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Mark as Paid</Text>
@@ -340,7 +354,6 @@ const PaymentDetail = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Notes */}
         <View 
           ref={noteSectionRef}
           style={styles.section}
@@ -360,7 +373,6 @@ const PaymentDetail = ({ route, navigation }) => {
           />
         </View>
 
-        {/* Extra space for keyboard */}
         <View style={{ height: 100 }} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -470,6 +482,17 @@ const styles = StyleSheet.create({
     minWidth: 100,
     textAlign: 'right',
     paddingVertical: 4,
+  },
+  dateButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.primary,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   switchRow: {
     flexDirection: 'row',

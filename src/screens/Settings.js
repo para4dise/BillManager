@@ -1,9 +1,10 @@
 /**
  * File: src/screens/Settings.js
  * Description: Application settings screen with user preferences and developer options
- * Version: 1.3.3
- * Last Updated: 2025-10-04
- * Changes: v1.3.3 - Simplified notification settings to single line format
+ * Version: 1.4.0
+ * Last Updated: 2025-10-05
+ * Changes: v1.4.0 - Replaced Export/Import with Backup & Restore navigation
+ *          v1.3.3 - Simplified notification settings to single line format
  *          v1.3.2 - Split time selection into hour and minute modals
  *          v1.3.1 - Expanded time options and days (1-10)
  */
@@ -85,7 +86,6 @@ const Settings = ({ navigation }) => {
         }
       });
       
-      // Set language from i18n if not saved in AsyncStorage
       if (!settings.find(([key]) => key === 'language')?.[1]) {
         setLanguage(i18n.language);
         await saveSetting('language', i18n.language);
@@ -159,30 +159,9 @@ const Settings = ({ navigation }) => {
     setShowDaysModal(false);
   };
 
-  // Hour options (0-23)
   const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-
-  // Minute options (0, 5, 10, ..., 55)
   const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
-
-  // Days options (1-10)
   const daysOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-  const handleExportData = () => {
-    Alert.alert(
-      t('settings.export'),
-      'Export functionality will be implemented',
-      [{ text: t('common.confirm') }]
-    );
-  };
-
-  const handleImportData = () => {
-    Alert.alert(
-      t('settings.import'),
-      'Import functionality will be implemented',
-      [{ text: t('common.confirm') }]
-    );
-  };
 
   const handleRegeneratePaymentsSkip = async () => {
     Alert.alert(
@@ -366,7 +345,6 @@ const Settings = ({ navigation }) => {
             handleNotificationToggle
           )}
           <View style={styles.singleLineRow}>
-            <Text style={styles.inlineLabel}>at</Text>
             <TouchableOpacity 
               style={styles.selectInputTiny}
               onPress={() => setShowHourModal(true)}
@@ -396,15 +374,16 @@ const Settings = ({ navigation }) => {
       {renderSection('Payment Methods', (
         <>
           {renderButton('Manage Payment Methods', () => {
-            Alert.alert('Payment Methods', 'Payment methods management will be implemented');
+            navigation.navigate('PaymentMethods');
           })}
         </>
       ))}
 
       {renderSection(t('settings.dataBackup'), (
         <>
-          {renderButton(t('settings.export'), handleExportData)}
-          {renderButton(t('settings.import'), handleImportData)}
+          {renderButton('Backup & Restore', () => {
+            navigation.navigate('BackupRestore');
+          })}
         </>
       ))}
 
@@ -429,7 +408,6 @@ const Settings = ({ navigation }) => {
         </>
       ))}
       
-      {/* Hour Selection Modal */}
       <Modal
         visible={showHourModal}
         transparent={true}
@@ -458,7 +436,6 @@ const Settings = ({ navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Minute Selection Modal */}
       <Modal
         visible={showMinuteModal}
         transparent={true}
@@ -487,7 +464,6 @@ const Settings = ({ navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Days Selection Modal */}
       <Modal
         visible={showDaysModal}
         transparent={true}
@@ -552,11 +528,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  timeSettingItem: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
   singleLineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -570,16 +541,6 @@ const styles = StyleSheet.create({
   inlineLabel: {
     fontSize: 16,
     color: COLORS.text.primary,
-  },
-  timeInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingLeft: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    flexWrap: 'wrap',
-    gap: 8,
   },
   settingLabel: {
     fontSize: 16,
@@ -600,35 +561,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     minWidth: 100,
   },
-  timeInput: {
-    minWidth: 70,
-  },
-  daysInput: {
-    minWidth: 50,
-    textAlign: 'center',
-  },
-  daysLabel: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-  },
   timeSeparator: {
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text.primary,
     marginHorizontal: 4,
   },
-  selectInput: {
-    fontSize: 16,
-    color: COLORS.text.primary,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 70,
-    backgroundColor: COLORS.surface,
-  },
-  selectInputSmall: {
+  selectInputTiny: {
     fontSize: 16,
     color: COLORS.text.primary,
     borderWidth: 1,

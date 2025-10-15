@@ -1,9 +1,11 @@
 /**
  * File: src/navigation/AppNavigator.js
  * Description: Main navigation setup with tabs and stack navigators
- * Version: 1.3.0
- * Last Updated: 2025-10-04
- * Changes: v1.3.0 - Added LogViewer screen to Settings stack
+ * Version: 1.5.0
+ * Last Updated: 2025-10-05
+ * Changes: v1.5.0 - Added PaymentMethods screen to Settings stack
+ *          v1.4.0 - Added BackupRestore screen to Settings stack
+ *          v1.3.0 - Added LogViewer screen to Settings stack
  *          v1.2.0 - Initial version with tabs
  */
 
@@ -21,6 +23,8 @@ import AccountList from '../screens/AccountList';
 import AccountDetail from '../screens/AccountDetail';
 import Settings from '../screens/Settings';
 import LogViewer from '../screens/LogViewer';
+import BackupRestore from '../screens/BackupRestore';
+import PaymentMethods from '../screens/PaymentMethods';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -113,6 +117,20 @@ const SettingsStack = () => {
         options={{
           title: 'Settings',
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="BackupRestore"
+        component={BackupRestore}
+        options={{
+          title: 'Backup & Restore',
+        }}
+      />
+      <Stack.Screen
+        name="PaymentMethods"
+        component={PaymentMethods}
+        options={{
+          title: 'Payment Methods',
         }}
       />
       <Stack.Screen

@@ -1,3 +1,12 @@
+/**
+ * File: src/constants/colors.js
+ * Description: Color constants and helper functions for Bill Manager app
+ * Version: 1.1.0
+ * Last Updated: 2025-10-05
+ * Changes: v1.1.0 - Added monthTitle colors for enhanced month header visibility
+ *          v1.0.0 - Initial color scheme
+ */
+
 // Color constants for Bill Manager app
 export const COLORS = {
   // Base colors
@@ -20,6 +29,14 @@ export const COLORS = {
     dueSoon: '#FFB6C1',
     paid: '#95A99B',
     unpaid: '#9E9E9E',
+  },
+  
+  // Month title status colors (more visible for headers)
+  monthTitle: {
+    overdue: '#FF4444',     // Red - same as status
+    dueSoon: '#FFB6C1',     // Pink - same as status
+    unpaid: '#000000',      // Black - highly visible for unpaid management
+    paid: '#95A99B',        // Green - same as status
   },
   
   // Semantic colors
@@ -61,6 +78,21 @@ export const getStatusColor = (status) => {
     case 'unpaid':
     default:
       return COLORS.status.unpaid;
+  }
+};
+
+// Month title color helper function
+export const getMonthTitleColor = (status) => {
+  switch (status) {
+    case 'overdue':
+      return COLORS.monthTitle.overdue;
+    case 'dueSoon':
+      return COLORS.monthTitle.dueSoon;
+    case 'paid':
+      return COLORS.monthTitle.paid;
+    case 'unpaid':
+    default:
+      return COLORS.monthTitle.unpaid;
   }
 };
 
